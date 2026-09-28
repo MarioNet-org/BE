@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum TokenPurpose {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CLOSED
+  EXPIRED
+}
+
+model User {
+  id              String   @id @default(uuid()) @db.Char(36)
+  email           String   @unique @db.VarChar(254)
+  passwordHash    String   @db.VarChar(255)
+  emailVerifiedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  sessions        Session[]
+  tokens          ActionToken[]
+  nodes           Node[]
+}
+
+model Session {
+  id              String   @id @default(uuid()) @db.Char(36)
+  userId          String   @db.Char(36)
+  accessHash      String   @unique @db.Char(64)
+  accessExpiresAt DateTime
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens   RefreshToken[]
+  connections     Connection[]
+  @@index([userId, revokedAt])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Char(36)
+  hash      String   @unique @db.Char(64)
+  sessionId String   @db.Char(36)
+  usedAt    DateTime?
+  replacementHash String? @db.Char(64)
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@index([sessionId])
+}
+
+model ActionToken {
+  id        String       @id @default(uuid()) @db.Char(36)
+  userId    String       @db.Char(36)
+  hash      String       @unique @db.Char(64)
+  purpose   TokenPurpose
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime     @default(now())
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, purpose, usedAt])
+}
+
+model Node {
+  id          String   @id @default(uuid()) @db.Char(36)
+  userId      String   @db.Char(36)
+  name        String   @db.VarChar(80)
+  platform    String   @db.VarChar(32)
+  keyHash     String   @db.Char(64)
+  lastSeenAt  DateTime?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connections Connection[]
+  @@index([userId, createdAt])
+}
+
+model Connection {
+  id                 String           @id @default(uuid()) @db.Char(36)
+  nodeId             String           @db.Char(36)
+  requesterSessionId String           @db.Char(36)
+  status             ConnectionStatus @default(PENDING)
+  createdAt          DateTime         @default(now())
+  expiresAt          DateTime
+  updatedAt          DateTime         @updatedAt
+  node               Node             @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  requester          Session          @relation(fields: [requesterSessionId], references: [id], onDelete: Cascade)
+  @@index([nodeId, status])
+  @@index([requesterSessionId, status])
+}
+

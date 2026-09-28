@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+.env.*
+.local
+.git
+coverage
+*.log
+test
+scripts
+README.md
+compose.yaml

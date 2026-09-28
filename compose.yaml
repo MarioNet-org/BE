@@ -1,0 +1,64 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Development Compose entrypoint; tsx watch handles source changes.
+    command: ["sh", "-c", "yarn run db:migrate && yarn run dev"]
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${SERVER_BIND_ADDRESS:-127.0.0.1}:${SERVER_PORT:-4000}:4000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      HOST: 0.0.0.0
+      PORT: 4000
+      # Inside Docker, use the service name and container port, not localhost:3307.
+      DATABASE_URL: mysql://marionet:local-marionet-only@mysql:3306/marionet
+      CLIENT_ORIGINS: ${CLIENT_ORIGINS:-http://localhost:5173}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://127.0.0.1:4000}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_TEST_EMAIL: ${RESEND_TEST_EMAIL:-}
+      MAIL_MODE: ${MAIL_MODE:-file}
+      MAIL_FROM: ${MAIL_FROM:-MarioNet <noreply@example.com>}
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-0}
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /app/src
+        - action: rebuild
+          path: ./package.json
+          target: /app/package.json
+        - action: rebuild
+          path: ./.env
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - server-data:/app/.local
+    stop_grace_period: 15s
+  mysql:
+    image: mysql:8.4
+    ports:
+      - "127.0.0.1:3307:3306"
+    environment:
+      MYSQL_DATABASE: marionet
+      MYSQL_USER: marionet
+      MYSQL_PASSWORD: local-marionet-only
+      MYSQL_ROOT_PASSWORD: local-root-only
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+volumes:
+  mysql-data:
+  server-data:
