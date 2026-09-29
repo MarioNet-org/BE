@@ -22,4 +22,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/my-app:latest # 내 Docker Hub 이미지 태그명
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/marionet-be:latest # 내 Docker Hub 이미지 태그명
